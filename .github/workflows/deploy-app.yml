@@ -1,0 +1,39 @@
+name: Copy file and Deploy with Docker
+
+on:
+  push:
+    branches:
+      - main
+      - merge_requests
+
+jobs:
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up SSH Agent
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Transfer Docker Compose file
+        run: |
+          rsync -avz --exclude='cypress' -e "ssh -o StrictHostKeyChecking=no" ./ ubuntu@${{ secrets.INSTANCE_IP }}:/home/ubuntu/
+
+
+      - name: Execute deployment commands remotely
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.INSTANCE_IP }} << 'EOF'
+          cd /home/ubuntu
+          # Version the image with the commit SHA
+          export IMAGE_TAG=${{ github.sha }}
+          # Build and tag the image
+          docker compose -f docker-compose.yml build --build-arg IMAGE_TAG=$IMAGE_TAG
+          # Push the versioned image
+          docker compose -f docker-compose.yml push
+          # Run the updated container
+          docker compose -f docker-compose.yml up -d --force-recreate
+          EOF
