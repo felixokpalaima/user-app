@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  postgresdb:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: user-info
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    networks:
+      - userInfo
+    # volumes: 
+    #   - postgresdata:postgresdata
+  
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: postgresdb
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_NAME: user-info
+    depends_on:
+      - postgresdb
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    networks:
+      - userInfo
+    # command: ["./wait-for-it.sh", "postgresdb:5432", "--", "node", "app.js"]
+
+networks:
+  userInfo:
+
+# volumes:
+#   postgresdata:
